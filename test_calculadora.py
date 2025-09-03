@@ -17,6 +17,9 @@ class TestCalculadora:
             
     def test_soma_mistos(self):
         assert self.calc.soma(5, -3) == 2
+        
+    def test_soma_mistos_v2(self):
+        assert self.calc.soma(50, -3) == 2
     
     # Testes de subtração
     def test_subtracao(self):
