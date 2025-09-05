@@ -1,36 +1,101 @@
 pipeline {
     agent any
-
+    
+    environment {
+        PYTHON_VERSION = '3.9'
+        VIRTUAL_ENV = 'venv'
+    }
+    
     stages {
-        stage('Build') {
+        stage('Checkout') {
             steps {
-                echo 'Buildando'
+                git branch: 'main', 
+                    url: 'https://github.com/AguiarMS/Pytest_Python'
             }
         }
         
-        stage('Teste unitario') {
+        stage('Configurar Ambiente') {
             steps {
-                echo 'Fazendo testes unitarios'
+                script {
+                    // Instalar Python se necessário (Linux)
+                    sh '''
+                        python${PYTHON_VERSION} -m venv ${VIRTUAL_ENV}
+                        . ${VIRTUAL_ENV}/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
+                    '''
+                }
             }
         }
         
-        stage('Deploy') {
+        stage('Executar Testes Unitários') {
             steps {
-                echo 'Publicando versao de ambiente de QA'
+                script {
+                    sh '''
+                        . ${VIRTUAL_ENV}/bin/activate
+                        python -m pytest tests/ -v --junitxml=test-results/junit.xml
+                    '''
+                }
+            }
+            post {
+                always {
+                    junit 'test-results/junit.xml'
+                }
             }
         }
         
-        stage('Testes E2E') {
+        stage('Cobertura de Testes') {
             steps {
-                echo 'Executando estagios ponta a ponta'
+                script {
+                    sh '''
+                        . ${VIRTUAL_ENV}/bin/activate
+                        python -m pytest tests/ --cov=src --cov-report=xml:coverage.xml
+                    '''
+                }
+            }
+            post {
+                always {
+                    publishCoverage adapters: [coberturaAdapter('coverage.xml')], 
+                                  sourceFileResolver: sourceFiles('NEVER_STORE')
+                }
             }
         }
         
-        stage('Pronto para produção') {
+        stage('Análise de Qualidade') {
             steps {
-                echo 'Executando produção do pacote'
+                script {
+                    sh '''
+                        . ${VIRTUAL_ENV}/bin/activate
+                        pip install pylint
+                        pylint src/ --output-format=parseable > pylint-report.txt || true
+                    '''
+                }
+            }
+            post {
+                always {
+                    recordIssues tools: [pyLint(pattern: 'pylint-report.txt')]
+                }
             }
         }
-        
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            emailext (
+                subject: "SUCESSO: Build ${env.BUILD_NUMBER}",
+                body: "Os testes passaram com sucesso!\nURL: ${env.BUILD_URL}",
+                to: "dev-team@example.com"
+            )
+        }
+        failure {
+            emailext (
+                subject: "FALHA: Build ${env.BUILD_NUMBER}",
+                body: "Os testes falharam!\nURL: ${env.BUILD_URL}",
+                to: "dev-team@example.com"
+            )
+        }
     }
 }
