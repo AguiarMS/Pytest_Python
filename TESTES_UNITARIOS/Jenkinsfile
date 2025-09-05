@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Buildando'
+            }
+        }
+        
+        stage('Teste unitario') {
+            steps {
+                echo 'Fazendo testes unitarios'
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                echo 'Publicando versao de ambiente de QA'
+            }
+        }
+        
+        stage('Testes E2E') {
+            steps {
+                echo 'Executando estagios ponta a ponta'
+            }
+        }
+        
+        stage('Pronto para produção') {
+            steps {
+                echo 'Executando produção do pacote'
+            }
+        }
+        
+    }
+}
