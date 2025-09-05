@@ -1,5 +1,5 @@
 import pytest
-from calculadora import Calculadora
+from TESTES_UNITARIOS.calculadora import Calculadora
 
 class TestCalculadora:
     def setup_method(self):
