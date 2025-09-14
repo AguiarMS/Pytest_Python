@@ -1,101 +1,49 @@
 pipeline {
     agent any
-    
-    environment {
-        PYTHON_VERSION = '3.9'
-        VIRTUAL_ENV = 'venv'
-    }
-    
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', 
-                    url: 'https://github.com/AguiarMS/Pytest_Python'
+                git url: 'YOUR_REPOSITORY_URL', branch: 'YOUR_BRANCH'
             }
         }
-        
-        stage('Configurar Ambiente') {
+
+        stage('Setup Virtual Environment') {
             steps {
                 script {
-                    // Instalar Python se necessário (Linux)
-                    sh '''
-                        python${PYTHON_VERSION} -m venv ${VIRTUAL_ENV}
-                        . ${VIRTUAL_ENV}/bin/activate
-                        pip install --upgrade pip
-                        pip install -r requirements.txt
-                    '''
+                    // Create and activate a virtual environment
+                    sh 'python3 -m venv venv'
+                    sh '. venv/bin/activate'
                 }
             }
         }
-        
-        stage('Executar Testes Unitários') {
+
+        stage('Install Dependencies') {
             steps {
                 script {
-                    sh '''
-                        . ${VIRTUAL_ENV}/bin/activate
-                        python -m pytest tests/ -v --junitxml=test-results/junit.xml
-                    '''
-                }
-            }
-            post {
-                always {
-                    junit 'test-results/junit.xml'
+                    // Activate virtual environment and install dependencies
+                    sh '. venv/bin/activate && pip install -r requirements.txt'
                 }
             }
         }
-        
-        stage('Cobertura de Testes') {
+
+        stage('Run Pytest Tests') {
             steps {
                 script {
-                    sh '''
-                        . ${VIRTUAL_ENV}/bin/activate
-                        python -m pytest tests/ --cov=src --cov-report=xml:coverage.xml
-                    '''
-                }
-            }
-            post {
-                always {
-                    publishCoverage adapters: [coberturaAdapter('coverage.xml')], 
-                                  sourceFileResolver: sourceFiles('NEVER_STORE')
-                }
-            }
-        }
-        
-        stage('Análise de Qualidade') {
-            steps {
-                script {
-                    sh '''
-                        . ${VIRTUAL_ENV}/bin/activate
-                        pip install pylint
-                        pylint src/ --output-format=parseable > pylint-report.txt || true
-                    '''
-                }
-            }
-            post {
-                always {
-                    recordIssues tools: [pyLint(pattern: 'pylint-report.txt')]
+                    // Activate virtual environment and run pytest
+                    // --junitxml generates a JUnit-style report for Jenkins to parse
+                    sh '. venv/bin/activate && pytest --junitxml=test-results.xml'
                 }
             }
         }
     }
-    
+
     post {
         always {
-            cleanWs()
-        }
-        success {
-            emailext (
-                subject: "SUCESSO: Build ${env.BUILD_NUMBER}",
-                body: "Os testes passaram com sucesso!\nURL: ${env.BUILD_URL}",
-                to: "dev-team@example.com"
-            )
-        }
-        failure {
-            emailext (
-                subject: "FALHA: Build ${env.BUILD_NUMBER}",
-                body: "Os testes falharam!\nURL: ${env.BUILD_URL}",
-                to: "dev-team@example.com"
-            )
+            // Publish JUnit test results for Jenkins to display
+            junit 'test-results.xml'
+            // Clean up virtual environment (optional)
+            sh 'rm -rf venv'
         }
     }
 }
